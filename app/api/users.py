@@ -5,15 +5,8 @@ from app.db.session import SessionLocal
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 from app.core.security import hash_password
-
+from app.core.deps import get_db # deps에서 가져오기
 router = APIRouter(prefix="/users", tags=["users"])
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("", response_model=UserResponse)
 def create_user(user: UserCreate, db:Session = Depends(get_db)):

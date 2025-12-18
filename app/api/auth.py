@@ -6,15 +6,9 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.core.security import verify_password
 from app.core.jwt import create_access_token
+from app.core.deps import get_db # deps에서 가져오기
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
