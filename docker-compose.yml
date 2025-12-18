@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: bda-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: docsdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - bda_pgdata:/var/lib/postgresql/data
+
+volumes:
+  bda_pgdata:
