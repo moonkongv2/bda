@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
 
 from app.db.session import SessionLocal
 from app.models.user import User
@@ -30,3 +31,11 @@ def create_user(user: UserCreate, db:Session = Depends(get_db)):
     db.refresh(db_user)
 
     return db_user
+
+@router.get("", response_model=List[UserResponse])
+def get_users(db: Session = Depends(get_db)):
+    """
+    Get a list of all registered user
+    """
+    users = db.query(User).all()
+    return users
