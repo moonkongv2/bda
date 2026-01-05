@@ -15,6 +15,7 @@ class DocumentUpdate(BaseModel):
 class DocumentResponse(DocumentBase):
     id: int
     owner_id: int
+    file_path: Optional[str] = None
 
     class Config:
         from_attributes = True

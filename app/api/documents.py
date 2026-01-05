@@ -1,3 +1,8 @@
+import shutil
+import os
+from uuid import uuid4
+from fastapi import File, UploadFile
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -7,6 +12,42 @@ from app.models.user import User
 from app.schemas.document import DocumentCreate, DocumentResponse, DocumentUpdate
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+# Set directory to save files
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True) # create folder if no exists
+
+@router.post("/upload", response_model=DocumentResponse)
+def upload_document(
+    file: UploadFile = File(...), # take 'file' as necessary argument
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Upload file and create document
+    """
+    # 1. create unique file name (to prevent redundant)
+    # ex: "a1b2c3d4-my_report.pdf"
+    filename = f"{uuid4()}-{file.filename}"
+    file_location = os.path.join(UPLOAD_DIR, filename)
+
+    # 2. Save file to server disk
+    with open(file_location, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # 3. Save metadata to DB
+    # Set the title as filename at first with empty data
+    db_doc = Document(
+        title=file.filename,
+        file_path = file_location,
+        owner_id=current_user.id
+    )
+
+    db.add(db_doc)
+    db.commit()
+    db.refresh(db_doc)
+
+    return db_doc
 
 @router.post("", response_model=DocumentResponse)
 def create_document(
