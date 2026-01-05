@@ -10,6 +10,7 @@ from app.core.deps import get_db, get_current_user
 from app.models.document import Document
 from app.models.user import User
 from app.schemas.document import DocumentCreate, DocumentResponse, DocumentUpdate
+from app.core.parser import extract_text_from_file
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -35,11 +36,15 @@ def upload_document(
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    # 3. Extract text from saved file
+    extracted_content = extract_text_from_file(file_location)
+
     # 3. Save metadata to DB
     # Set the title as filename at first with empty data
     db_doc = Document(
         title=file.filename,
         file_path = file_location,
+        content=extracted_content,
         owner_id=current_user.id
     )
 
