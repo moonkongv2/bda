@@ -1,2 +1,5 @@
 .venv
 /uploads
+.DS_store
+.env
+

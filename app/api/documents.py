@@ -3,6 +3,8 @@ import os
 from uuid import uuid4
 from fastapi import File, UploadFile
 
+from app.core.ai import generate_summary
+from app.schemas.document import DocumentResponse
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -126,7 +128,6 @@ def delete_document(
     current_user: User = Depends(get_current_user)
 ):
     doc = db.query(Document).filter(Document.id == doc_id).first()
-    
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -136,3 +137,34 @@ def delete_document(
     db.delete(doc)
     db.commit()
     return {"status": "deleted", "id": doc_id}
+
+@router.post("/{doc_id}/summarize", response_model=DocumentResponse)
+def summarize_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Summarize a document using AI
+    """
+    # 1. Search a document
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permission")
+    if not doc.content:
+        raise HTTPException(status_code=400, detail="Document has no content")
+
+    # 2. AI summarize
+    summary_text = generate_summary(doc.content)
+
+    # 3. Save result
+    doc.summary = summary_text
+    db.commit()
+    db.refresh(doc)
+
+    return doc
+
+
