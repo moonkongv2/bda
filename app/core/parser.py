@@ -1,27 +1,35 @@
 import os
 from pypdf import PdfReader
+from io import BytesIO, TextIOWrapper
 
-def extract_text_from_file(file_path: str) -> str:
+def extract_text_from_file(file_content, filename: str) -> str:
     """
-    returns texts in file from file_path
+    returns texts in file from file content (file-like object or bytes)
     available formats: .txt, .pdf
     """
-    ext = os.path.splitext(file_path)[1].lower()
+    ext = os.path.splitext(filename)[1].lower()
     text = ""
+
+    # Ensure file_content is a file-like object
+    if isinstance(file_content, bytes):
+        file_content = BytesIO(file_content)
+
+    # Ensure pointer is at the beginning
+    if hasattr(file_content, 'seek'):
+        file_content.seek(0)
 
     try:
         if ext == ".txt":
+            # Read content as bytes first
+            content_bytes = file_content.read()
             try:
-                # read the file without parsing
-                with open(file_path, "r", encoding="utf-8") as f:
-                    text = f.read()
+                text = content_bytes.decode("utf-8")
             except UnicodeDecodeError:
-                with open(file_path, "r", encoding="cp949") as f:
-                    text = f.read()
+                text = content_bytes.decode("cp949")
 
         elif ext == ".pdf":
             # read each page then merge
-            reader = PdfReader(file_path)
+            reader = PdfReader(file_content)
             for page in reader.pages:
                 page_text = page.extract_text()
                 if page_text:
