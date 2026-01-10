@@ -5,9 +5,18 @@ import os
 # when using local LLM
 # base_url = "http://localhost:11434/v1"
 
-client = OpenAI(
-    api_key = os.getenv("OPENAI_API_KEY", "sk-proj-..."),
-)
+LLM_LOCATION = 'local'
+LLM_MODEL = 'qwen3:14b'
+
+if LLM_LOCATION == 'local':
+    client = OpenAI(
+        base_url="http://localhost:11434/v1",
+        api_key="ollama"
+    )
+else:
+    client = OpenAI(
+        api_key = os.getenv("OPENAI_API_KEY", "sk-proj-..."),
+    )
 
 def generate_summary(text: str) -> str:
     """
@@ -23,7 +32,8 @@ def generate_summary(text: str) -> str:
         truncated_text = text[:3000]
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo", # or local LLM model
+            model = LLM_MODEL,
+#            model="gpt-3.5-turbo", # or local LLM model
             messages=[
                 {"role": "system", "content": "너는 유능한 요약 비서야. 다음 내용을 한국어로 3줄 요약해줘."},
                 {"role": "user", "content": truncated_text},
