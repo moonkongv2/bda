@@ -13,12 +13,9 @@ from app.models.document import Document
 from app.models.user import User
 from app.schemas.document import DocumentCreate, DocumentResponse, DocumentUpdate
 from app.core.parser import extract_text_from_file
+from app.core import storage
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-
-# Set directory to save files
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True) # create folder if no exists
 
 @router.post("/upload", response_model=DocumentResponse)
 def upload_document(
@@ -32,20 +29,25 @@ def upload_document(
     # 1. create unique file name (to prevent redundant)
     # ex: "a1b2c3d4-my_report.pdf"
     filename = f"{uuid4()}-{file.filename}"
-    file_location = os.path.join(UPLOAD_DIR, filename)
 
-    # 2. Save file to server disk
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    # 2. Extract text from file content
+    # We read from the temporary file provided by UploadFile
+    # Ideally, we should ensure the cursor is at the beginning
+    file.file.seek(0)
+    extracted_content = extract_text_from_file(file.file, file.filename)
 
-    # 3. Extract text from saved file
-    extracted_content = extract_text_from_file(file_location)
+    # 3. Save file using storage helper (S3 or Local)
+    # The storage helper handles resetting the cursor if needed
+    try:
+        file_path = storage.save_file(file, filename)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
-    # 3. Save metadata to DB
+    # 4. Save metadata to DB
     # Set the title as filename at first with empty data
     db_doc = Document(
         title=file.filename,
-        file_path = file_location,
+        file_path = file_path,
         content=extracted_content,
         owner_id=current_user.id
     )
@@ -166,5 +168,3 @@ def summarize_document(
     db.refresh(doc)
 
     return doc
-
-
