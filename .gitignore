@@ -2,4 +2,4 @@
 /uploads
 .DS_store
 .env
-
+/chroma_db
