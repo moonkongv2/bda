@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, List
 
 class DocumentBase(BaseModel):
     title: str
@@ -20,3 +20,13 @@ class DocumentResponse(DocumentBase):
 
     class Config:
         from_attributes = True
+
+
+class ChatRequest(BaseModel):
+    question: str
+
+
+class ChatResponse(BaseModel):
+    question: str
+    answer: str
+    contexts: List[str] = Field(default_factory=list)

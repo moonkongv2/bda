@@ -3,16 +3,22 @@ import os
 from uuid import uuid4
 from fastapi import File, UploadFile
 
-from app.core.ai import generate_summary
-from app.schemas.document import DocumentResponse
-from fastapi import APIRouter, Depends, HTTPException, status
+from app.core.ai import generate_summary, generate_chat_answer
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.deps import get_db, get_current_user
 from app.models.document import Document
 from app.models.user import User
-from app.schemas.document import DocumentCreate, DocumentResponse, DocumentUpdate
+from app.schemas.document import (
+    DocumentCreate,
+    DocumentResponse,
+    DocumentUpdate,
+    ChatRequest,
+    ChatResponse,
+)
 from app.core.parser import extract_text_from_file
+from app.core.vector_store import save_document_to_vectorstore, search_document_contexts
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -54,6 +60,15 @@ def upload_document(
     db.commit()
     db.refresh(db_doc)
 
+    # Store in vectorDB (prepare RAG)
+    # TODO: usually running in background task, run it async for now
+
+    try:
+        save_document_to_vectorstore(db_doc.id, extracted_content)
+    except Exception as e:
+        print(f"Vector DB Error: {e}")
+        # TODO: should be decided if considering success in upload even if storing vector is failed
+        # just leaving log here for now
     return db_doc
 
 @router.post("", response_model=DocumentResponse)
@@ -168,3 +183,29 @@ def summarize_document(
     return doc
 
 
+@router.post("/{doc_id}/chat", response_model=ChatResponse)
+def chat_with_document(
+    doc_id: int,
+    payload: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Ask a question to a single document using retrieved chunks.
+    """
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permission")
+
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+
+    contexts = search_document_contexts(doc_id=doc.id, query=question, k=4)
+    if not contexts and doc.content:
+        contexts = [doc.content[:2000]]
+
+    answer = generate_chat_answer(question=question, contexts=contexts)
+    return ChatResponse(question=question, answer=answer, contexts=contexts)

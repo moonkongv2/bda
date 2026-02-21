@@ -8,3 +8,8 @@ python-jose[cryptography]
 python-multipart
 pypdf
 openai
+langchain
+langchain-community
+langchain-ollama
+chromadb
+email-validator
