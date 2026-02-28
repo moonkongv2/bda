@@ -19,6 +19,7 @@ from app.schemas.document import (
 )
 from app.core.parser import extract_text_from_file
 from app.core.vector_store import save_document_to_vectorstore, search_document_contexts
+from typing import List
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -152,6 +153,17 @@ def delete_document(
     db.delete(doc)
     db.commit()
     return {"status": "deleted", "id": doc_id}
+
+@router.get("/", response_model=List[DocumentResponse])
+def get_my_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    get a list of all uploaded document
+    """
+    docs = db.query(Document).filter(Document.owner_id == current_user.id).order_by(Document.id.desc()).all()
+    return docs
 
 @router.post("/{doc_id}/summarize", response_model=DocumentResponse)
 def summarize_document(
